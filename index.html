@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KREBS ADVENTURE</title>
+    <style>
+        :root {
+            --bg-color: #2c3e50;
+            --text-color: #ecf0f1;
+            --accent-color: #e74c3c; 
+            --player-color: #3498db; 
+            --reward-color: #f1c40f; 
+            --matrix-wall: #34495e;
+            --wrong-color: #c0392b;
+            --correct-color: #27ae60;
+        }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #0f141a;
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            height: 100vh;
+        }
+
+        #game-container {
+            width: 800px;
+            height: 600px;
+            background-color: var(--bg-color);
+            border: 4px solid var(--matrix-wall);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
+        }
+
+        /* --- Start Screen --- */
+        #start-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 20, 26, 0.95);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 40px;
+            box-sizing: border-box;
+        }
+
+        #start-screen h1 { color: var(--player-color); font-size: 3em; margin-bottom: 10px; letter-spacing: 5px; }
+        #start-screen p { font-size: 1.2em; max-width: 600px; margin-bottom: 30px; line-height: 1.6; color: #bdc3c7; }
+
+        /* --- Battle Effects --- */
+        .battle-flash {
+            animation: flash 0.3s ease-out;
+        }
+
+        @keyframes flash {
+            0% { filter: brightness(1); }
+            50% { filter: brightness(3); }
+            100% { filter: brightness(1); }
+        }
+        
+        .shake-effect {
+            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        .reward-popup {
+            position: absolute;
+            color: var(--reward-color);
+            font-weight: bold;
+            font-size: 1.5em;
+            pointer-events: none;
+            z-index: 50;
+            animation: floatUp 1s forwards;
+            text-shadow: 2px 2px 0px #000;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-100px); opacity: 0; }
+        }
+
+        /* --- Scene Area --- */
+        #status-bar {
+            background-color: var(--matrix-wall);
+            padding: 10px;
+            display: flex;
+            justify-content: space-around;
+            font-weight: bold;
+            border-bottom: 2px solid #1a1a1a;
+        }
+
+        #scene-area {
+            flex-grow: 1;
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 50px;
+            background-image: linear-gradient(rgba(44, 62, 80, 0.8), rgba(44, 62, 80, 0.8)), url('matrix_bg.png'); 
+            background-size: cover;
+        }
+
+        #location-label {
+            position: absolute;
+            top: 15px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.8); padding: 5px 20px; border-radius: 20px; z-index: 10;
+            font-size: 0.9em; text-transform: uppercase; letter-spacing: 2px; border: 1px solid #555;
+        }
+        
+        #feedback-msg {
+            position: absolute;
+            top: 60px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.9); padding: 8px 15px; border-radius: 5px; z-index: 10;
+            font-size: 1.1em; font-weight: bold;
+            display: none;
+        }
+        .wrong-msg { color: var(--wrong-color); border: 1px solid var(--wrong-color); }
+        .correct-msg { color: var(--correct-color); border: 1px solid var(--correct-color); }
+
+        .sprite {
+            width: 160px; height: 160px;
+            background-size: contain; background-repeat: no-repeat; background-position: center;
+            position: relative; transition: all 0.5s ease;
+            z-index: 5;
+        }
+
+        #player-sprite { filter: drop-shadow(0 0 10px var(--player-color)); }
+        #enemy-sprite { filter: drop-shadow(0 0 10px var(--accent-color)); }
+
+        .molecule-label-container {
+            position: absolute; bottom: -40px; width: 180px;
+            background: rgba(0,0,0,0.8); padding: 5px; border-radius: 5px; text-align: center;
+        }
+
+        .carbon-count {
+            position: absolute; top: -10px; right: -10px;
+            background: #ecf0f1; color: #2c3e50; width: 35px; height: 35px;
+            border-radius: 50%; display: flex; justify-content: center; align-items: center;
+            font-weight: bold; border: 2px solid #333;
+        }
+
+        /* --- UI Controls --- */
+        #ui-container { height: 220px; background: var(--matrix-wall); display: flex; border-top: 4px solid #1a1a1a; }
+        #dialogue-box { flex-grow: 2; padding: 25px; font-size: 1.1em; line-height: 1.5; border-right: 4px solid #1a1a1a; overflow-y: auto; background: rgba(0,0,0,0.2); }
+        #controls-box { flex-basis: 300px; padding: 20px; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+
+        .option-btn {
+            padding: 12px; font-family: inherit; font-weight: bold; font-size: 0.9em;
+            background: var(--player-color); color: white; border: none; border-radius: 5px;
+            cursor: pointer; transition: 0.2s; text-align: left;
+            border-left: 5px solid rgba(0,0,0,0.2);
+        }
+        .option-btn:hover { background: #2980b9; transform: translateX(5px); }
+        .option-btn:disabled { background: #7f8c8d; opacity: 0.6; cursor: not-allowed; transform: none; }
+        
+        #continue-btn { 
+            background: #27ae60; color: white; padding: 15px; font-size: 1.1em; 
+            border: none; border-radius: 5px; cursor: pointer; display: none; 
+            text-align: center; font-weight: bold;
+        }
+        #continue-btn:hover { background: #2ecc71; }
+        
+        #restart-btn {
+             background: var(--reward-color); color: #000; padding: 15px; font-size: 1.1em; 
+            border: none; border-radius: 5px; cursor: pointer; display: none;
+            text-align: center; font-weight: bold;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="start-screen">
+            <h1>KREBS ADVENTURE</h1>
+            <p>
+                Welcome to the Mitochondrial Matrix.<br><br>
+                You are Acetyl CoA. Complete the cycle to power the cell!
+            </p>
+            <button class="option-btn" style="text-align: center;" onclick="startGame()">START ADVENTURE</button>
+        </div>
+
+        <div id="status-bar">
+            <div>NADH: <span id="nadh-count">0</span></div>
+            <div>FADH₂: <span id="fadh-count">0</span></div>
+            <div>ATP: <span id="atp-count">0</span></div>
+            <div style="color: #ff7675;">CO₂: <span id="co2-count">0</span></div>
+        </div>
+
+        <div id="scene-area">
+            <div id="location-label">Matrix Core</div>
+            <div id="feedback-msg"></div>
+            
+            <div id="player-sprite" class="sprite">
+                <div class="carbon-count" id="player-carbons">2C</div>
+                <div class="molecule-label-container">
+                    <div id="player-name">Acetyl CoA</div>
+                </div>
+            </div>
+
+            <div id="enemy-sprite" class="sprite" style="opacity: 0;">
+                <div class="molecule-label-container">
+                    <div id="enemy-name">Target</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="ui-container">
+            <div id="dialogue-box">Initializing...</div>
+            <div id="controls-box">
+                <div id="options-container" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                <button id="continue-btn" onclick="nextStage()">CONTINUE</button>
+                <button id="restart-btn" onclick="location.reload()">RESTART CYCLE</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    let gameState = {
+        stageIndex: -1,
+        nadh: 0, fadh2: 0, atp: 0, co2: 0,
+        currentPlayer: "Acetyl CoA",
+        currentCarbons: 2,
+        currentImage: "acetylcoa.png"
+    };
+
+    // --- GAME CONTENT FROM DOCX ---
+    const stages = [
+        // SCENE 1
+        {
+            loc: "The City of ATE",
+            text: "You carry 2 carbons from Glycolysis. Now choose the correct process to combine with 4-carbon oxaloacetate to form 6-carbon citrate.",
+            enemy: "Oxaloacetate", enemyImg: "oxaloacetate.png",
+            options: [
+                { text: "Condensation", correct: true },
+                { text: "Oxidation", correct: false },
+                { text: "Phosphorylation", correct: false }
+            ],
+            type: "question"
+        },
+        // SCENE 2
+        {
+            loc: "The City of ATE",
+            text: "Correct answer! You are now citrate. The cycle has officially begun!",
+            evo: "Citrate", c: 6, img: "citrate.png",
+            type: "success",
+            rewards: {}
+        },
+        // SCENE 3
+        {
+            loc: "The City of ATE",
+            text: "Now, to form isocitrate, you need to remove one water molecule and add another one water molecule. Choose the correct process.",
+            options: [
+                { text: "Isomerisation", correct: true },
+                { text: "Hydration", correct: false }
+            ],
+            type: "question"
+        },
+        // SCENE 4
+        {
+            loc: "The City of ATE",
+            text: "Congrats! You have successfully converted into isocitrate.",
+            evo: "Isocitrate", c: 6, img: "isocitrate.png",
+            type: "success",
+            rewards: {}
+        },
+        // SCENE 5
+        {
+            loc: "The City of Oxidative Decarboxylation",
+            text: "NAD+ is here! Rip a carbon off (decarboxylation) and release it as CO2 to harvest high-energy electrons. Choose a skill to defeat NAD+!",
+            enemy: "NAD+", enemyImg: "nad_plus.png",
+            options: [
+                { text: "Phosphorylation", correct: false },
+                { text: "Reduction", correct: false },
+                { text: "Oxidation", correct: true }
+            ],
+            type: "question"
+        },
+        // SCENE 6 (Transition/Success)
+        {
+            loc: "The City of Oxidative Decarboxylation",
+            text: "Success! You released CO2 and reduced NAD+.",
+            evo: "Alpha-Ketoglutarate", c: 5, img: "alpha_keto.png",
+            type: "success",
+            rewards: {nadh: 1, co2: 1}
+        },
+        // SCENE 7
+        {
+            loc: "The City of Oxidative Decarboxylation",
+            text: "NAD+ requested for another fight! Repeat the process. Release a carbon in the form of CO2. Choose the correct process to reduce NAD+ to form NADH and H+ by transferring electrons.",
+            enemy: "NAD+", enemyImg: "nad_plus.png",
+            options: [
+                { text: "Oxidative Decarboxylation", correct: true },
+                { text: "Hydration", correct: false }
+            ],
+            type: "question"
+        },
+        // SCENE 8 (Success)
+        {
+            loc: "The City of Oxidative Decarboxylation",
+            text: "Excellent! Coenzyme A is attached to you by forming an unstable bond. You are now 4-carbon Succinyl-CoA. You have successfully released 2 CO2 molecule!",
+            evo: "Succinyl-CoA", c: 4, img: "succinyl_coa.png",
+            type: "success",
+            rewards: {nadh: 1, co2: 1}
+        },
+        // SCENE 9
+        {
+            loc: "The GDP Junction",
+            text: "You have met with the GDP master! He is going to help you find an ATP molecule. He needs a phosphate group from you to proceed. Choose the correct process.",
+            enemy: "GDP Master", enemyImg: "gdp.png",
+            options: [
+                { text: "Oxidative decarboxylation", correct: false },
+                { text: "Substrate-level phosphorylation", correct: true },
+                { text: "Oxidative Phosphorylation", correct: false }
+            ],
+            type: "question"
+        },
+        // SCENE 10 (Success)
+        {
+            loc: "The GDP Junction",
+            text: "The phosphate group was used to displace Coenzyme A and then transferred to GDP to form GTP. GTP had transferred the phosphate group to ADP and you have successfully gained 1 molecule of ATP.",
+            evo: "Succinate", c: 4, img: "succinate.png",
+            type: "success",
+            rewards: {atp: 1}
+        },
+        // SCENE 11
+        {
+            loc: "The City of ATE",
+            text: "FAD has appeared! Choose the correct skill to defeat FAD and gain FADH2.",
+            enemy: "FAD", enemyImg: "fad.png",
+            options: [
+                { text: "Donate 2 electron", correct: false },
+                { text: "Donate 2 proton (H+)", correct: false },
+                { text: "Donate 2 electron and 2 proton (H+)", correct: true }
+            ],
+            type: "question"
+        },
+        // SCENE 12 (Success)
+        {
+            loc: "The City of ATE",
+            text: "Succinate has successfully oxidised into fumarate! Now you have gained 1 FADH2!",
+            evo: "Fumarate", c: 4, img: "fumarate.png",
+            type: "success",
+            rewards: {fadh2: 1}
+        },
+        // SCENE 13
+        {
+            loc: "The City of ATE",
+            text: "To prepare for the final step, we need to hydrate. Choose the correct process.",
+            options: [
+                { text: "Add one water molecule", correct: true },
+                { text: "Remove water molecule", correct: false }
+            ],
+            type: "question"
+        },
+        // SCENE 13b (Success for Hydration) - inferred transition
+        {
+            loc: "The City of ATE",
+            text: "Hydration complete! You have evolved into Malate.",
+            evo: "Malate", c: 4, img: "malate.png",
+            type: "success",
+            rewards: {}
+        },
+        // SCENE 14
+        {
+            loc: "The City of ATE",
+            text: "Choose your skill to oxidize the final bond to regenerate oxaloacetate!",
+            enemy: "NAD+", enemyImg: "nad_plus.png",
+            options: [
+                { text: "Release 1 CO2", correct: false },
+                { text: "Transfer electron and H+", correct: true }
+            ],
+            type: "question"
+        },
+        // SCENE 15 (Final Success)
+        {
+            loc: "The City of ATE",
+            text: "Final oxidation complete! You have regenerated Oxaloacetate.",
+            evo: "Oxaloacetate", c: 4, img: "oxaloacetate.png",
+            type: "success",
+            rewards: {nadh: 1}
+        }
+    ];
+
+    function startGame() {
+        document.getElementById('start-screen').style.display = 'none';
+        nextStage();
+    }
+
+    function triggerBattleEffect(rewards) {
+        if (!rewards || Object.keys(rewards).length === 0) return;
+        
+        const scene = document.getElementById('scene-area');
+        scene.classList.add('battle-flash');
+        setTimeout(() => scene.classList.remove('battle-flash'), 300);
+
+        Object.entries(rewards).forEach(([key, val], index) => {
+            const popup = document.createElement('div');
+            popup.className = 'reward-popup';
+            popup.textContent = `+${val} ${key.toUpperCase()}`;
+            popup.style.right = '100px';
+            popup.style.top = (200 + (index * 40)) + 'px';
+            scene.appendChild(popup);
+            setTimeout(() => popup.remove(), 1000);
+        });
+    }
+    
+    function showFeedback(msg, type) {
+        const fbBox = document.getElementById('feedback-msg');
+        fbBox.textContent = msg;
+        fbBox.className = type === 'error' ? 'wrong-msg' : 'correct-msg';
+        fbBox.style.display = 'block';
+        
+        if(type === 'error') {
+            document.getElementById('game-container').classList.add('shake-effect');
+            setTimeout(() => document.getElementById('game-container').classList.remove('shake-effect'), 400);
+        }
+    }
+
+    function handleOptionClick(isCorrect) {
+        if (isCorrect) {
+            // Correct logic
+            showFeedback("Correct Answer!", "success");
+            // Disable buttons
+            const buttons = document.querySelectorAll('.option-btn');
+            buttons.forEach(btn => btn.disabled = true);
+            
+            // Wait slightly then move to next stage (which is usually the Success dialogue)
+            setTimeout(() => {
+                document.getElementById('feedback-msg').style.display = 'none';
+                nextStage();
+            }, 800);
+        } else {
+            // Wrong logic
+            showFeedback("Wrong answer chosen !", "error");
+        }
+    }
+
+    function nextStage() {
+        gameState.stageIndex++;
+        if (gameState.stageIndex >= stages.length) {
+            endGame();
+            return;
+        }
+
+        const stage = stages[gameState.stageIndex];
+        
+        // Update UI Text
+        document.getElementById('location-label').textContent = stage.loc;
+        document.getElementById('dialogue-box').textContent = stage.text;
+        
+        // Setup Enemy/Helper
+        const enemy = document.getElementById('enemy-sprite');
+        if (stage.enemy) {
+            enemy.style.opacity = 1;
+            document.getElementById('enemy-name').textContent = stage.enemy;
+            if(stage.enemyImg) enemy.style.backgroundImage = `url('${stage.enemyImg}')`;
+        } else {
+            enemy.style.opacity = 0;
+        }
+
+        // Handle Stage Type
+        const optionsContainer = document.getElementById('options-container');
+        const continueBtn = document.getElementById('continue-btn');
+        optionsContainer.innerHTML = ''; // Clear old buttons
+
+        if (stage.type === 'question') {
+            continueBtn.style.display = 'none';
+            stage.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.textContent = opt.text;
+                btn.onclick = () => handleOptionClick(opt.correct);
+                optionsContainer.appendChild(btn);
+            });
+        } else if (stage.type === 'success') {
+            // Apply rewards and evolution visuals immediately upon loading success stage
+            if(stage.evo) {
+                gameState.currentPlayer = stage.evo;
+                gameState.currentCarbons = stage.c;
+                gameState.currentImage = stage.img;
+            }
+            
+            // Add rewards
+            if(stage.rewards) {
+                gameState.nadh += stage.rewards.nadh || 0;
+                gameState.fadh2 += stage.rewards.fadh2 || 0;
+                gameState.atp += stage.rewards.atp || 0;
+                gameState.co2 += stage.rewards.co2 || 0;
+                triggerBattleEffect(stage.rewards);
+            }
+            updateUI();
+            
+            // Show continue button
+            continueBtn.style.display = 'block';
+        }
+        
+        updateUI();
+    }
+
+    function updateUI() {
+        document.getElementById('nadh-count').textContent = gameState.nadh;
+        document.getElementById('fadh-count').textContent = gameState.fadh2;
+        document.getElementById('atp-count').textContent = gameState.atp;
+        document.getElementById('co2-count').textContent = gameState.co2;
+        document.getElementById('player-name').textContent = gameState.currentPlayer;
+        document.getElementById('player-carbons').textContent = gameState.currentCarbons + 'C';
+        document.getElementById('player-sprite').style.backgroundImage = `url('${gameState.currentImage}')`;
+    }
+
+    function endGame() {
+        const finalMsg = "THE CYCLE IS COMPLETED! \nYou have successfully gained 3 NADH, 1 FADH2, 1 ATP and released 2 CO2 molecule. You have potentially contribute 34 ATP for the Electron Transposrt Chain!";
+        document.getElementById('dialogue-box').innerText = finalMsg;
+        document.getElementById('options-container').innerHTML = '';
+        document.getElementById('continue-btn').style.display = 'none';
+        document.getElementById('restart-btn').style.display = 'block';
+        document.getElementById('enemy-sprite').style.opacity = 0;
+        document.getElementById('location-label').textContent = "The City of ATE";
+    }
+</script>
+</body>
+</html>
