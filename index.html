@@ -488,7 +488,7 @@
             enemy: "NAD+", enemyImg: "nad_plus.png",
             options: [
                 { text: "Phosphorylation", correct: false },
-                { text: "Reduction", correct: false },
+                { text: "Hydration", correct: false },
                 { text: "Oxidation", correct: true }
             ],
             type: "question"
@@ -546,9 +546,9 @@
             text: "FAD has appeared! Choose the correct skill to defeat FAD and gain FADH2.",
             enemy: "FAD", enemyImg: "fad.png",
             options: [
-                { text: "Donate 2 electron", correct: false },
-                { text: "Donate 2 proton (H+)", correct: false },
-                { text: "Donate 2 electron and 2 proton (H+)", correct: true }
+                { text: "Dehydration", correct: false },
+                { text: "Decarboxylation", correct: false },
+                { text: "Oxidation", correct: true }
             ],
             type: "question"
         },
@@ -717,7 +717,7 @@
     }
 
     function endGame() {
-        const finalMsg = "THE CYCLE IS COMPLETED! \nYou have successfully gained 3 NADH, 1 FADH2, 1 ATP and released 2 CO2 molecule. You have potentially contribute 34 ATP for the Electron Transposrt Chain!";
+        const finalMsg = "THE CYCLE IS COMPLETED! \nYou have successfully gained 3 NADH, 1 FADH2, 1 ATP and released 2 CO2 molecule. You have potentially contribute 34 ATP for the Electron Transport Chain!";
         document.getElementById('dialogue-box').innerText = finalMsg;
         document.getElementById('options-container').innerHTML = '';
         document.getElementById('continue-btn').style.display = 'none';
